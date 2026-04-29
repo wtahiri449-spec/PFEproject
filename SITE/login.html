@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion — Plateforme Académique IA</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --blue: #1d4ed8;
+      --blue-light: #3b82f6;
+      --blue-glow: rgba(59,130,246,0.25);
+      --green: #059669;
+      --green-light: #10b981;
+      --bg: #050d1a;
+      --surface: #0d1f35;
+      --surface2: #112240;
+      --border: rgba(59,130,246,0.2);
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --white: #ffffff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Fond animé */
+    .bg-grid {
+      position: fixed; inset: 0; z-index: 0;
+      background-image: 
+        linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      animation: float 8s ease-in-out infinite;
+      z-index: 0;
+    }
+    .orb-1 { width: 400px; height: 400px; background: rgba(29,78,216,0.15); top: -100px; left: -100px; animation-delay: 0s; }
+    .orb-2 { width: 300px; height: 300px; background: rgba(5,150,105,0.12); bottom: -80px; right: -80px; animation-delay: 3s; }
+    .orb-3 { width: 200px; height: 200px; background: rgba(59,130,246,0.1); top: 50%; left: 50%; animation-delay: 6s; }
+
+    @keyframes float {
+      0%, 100% { transform: translate(0,0) scale(1); }
+      50% { transform: translate(20px, -20px) scale(1.05); }
+    }
+
+    /* Conteneur principal */
+    .container {
+      position: relative; z-index: 10;
+      display: flex;
+      width: 900px;
+      max-width: 95vw;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03);
+      animation: slideUp 0.7s cubic-bezier(0.23, 1, 0.32, 1) both;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(40px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Panneau gauche (décoratif) */
+    .left-panel {
+      flex: 1;
+      background: linear-gradient(145deg, #0a1628 0%, #0d2040 50%, #0a2a20 100%);
+      padding: 50px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-right: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .left-panel::before {
+      content: '';
+      position: absolute;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(29,78,216,0.2) 0%, transparent 70%);
+      top: -100px; left: -100px;
+      animation: pulse 4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.2); opacity: 1; }
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 46px; height: 46px;
+      background: linear-gradient(135deg, var(--blue), var(--blue-light));
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 20px var(--blue-glow);
+    }
+    .brand-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--white);
+      line-height: 1.2;
+    }
+    .brand-sub { font-size: 0.72rem; color: var(--muted); font-weight: 400; }
+
+    .left-content { position: relative; }
+    .left-content h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--white);
+      line-height: 1.25;
+      margin-bottom: 18px;
+    }
+    .left-content h2 span {
+      background: linear-gradient(90deg, var(--blue-light), var(--green-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .left-content p {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.7;
+      margin-bottom: 32px;
+    }
+
+    .feature-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+    .feature-list li {
+      display: flex; align-items: center; gap: 12px;
+      color: #94a3b8;
+      font-size: 0.88rem;
+    }
+    .feat-icon {
+      width: 32px; height: 32px;
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .demo-badge {
+      background: rgba(5,150,105,0.1);
+      border: 1px solid rgba(5,150,105,0.3);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 0.8rem;
+      color: var(--green-light);
+    }
+    .demo-badge strong { display: block; margin-bottom: 6px; color: var(--white); }
+    .demo-cred { font-family: monospace; background: rgba(0,0,0,0.3); padding: 3px 8px; border-radius: 6px; margin: 2px 0; display: inline-block; }
+
+    /* Panneau droit (formulaire) */
+    .right-panel {
+      width: 380px;
+      flex-shrink: 0;
+      padding: 48px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .form-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 6px;
+    }
+    .form-subtitle { color: var(--muted); font-size: 0.88rem; margin-bottom: 28px; }
+
+    /* Tabs rôle */
+    .role-tabs {
+      display: flex;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 28px;
+      gap: 4px;
+    }
+    .role-btn {
+      flex: 1;
+      padding: 9px;
+      border: none;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .role-btn.active {
+      background: var(--blue);
+      color: var(--white);
+      box-shadow: 0 0 16px var(--blue-glow);
+    }
+    .role-btn.active.green { background: var(--green); box-shadow: 0 0 16px rgba(5,150,105,0.3); }
+
+    /* Champs */
+    .field { margin-bottom: 18px; }
+    .field label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+    .input-wrap {
+      position: relative;
+      display: flex; align-items: center;
+    }
+    .input-icon {
+      position: absolute; left: 14px;
+      color: var(--muted);
+      font-size: 14px;
+      pointer-events: none;
+    }
+    .field input {
+      width: 100%;
+      padding: 13px 14px 13px 40px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.25s ease;
+    }
+    .field input::placeholder { color: #334155; }
+    .field input:focus {
+      border-color: var(--blue-light);
+      box-shadow: 0 0 0 3px var(--blue-glow);
+      background: rgba(29,78,216,0.05);
+    }
+
+    .row-options {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 22px;
+      font-size: 0.82rem;
+    }
+    .check-label { display: flex; align-items: center; gap: 8px; color: var(--muted); cursor: pointer; }
+    .check-label input[type=checkbox] { accent-color: var(--blue-light); }
+    .forgot { color: var(--blue-light); text-decoration: none; font-weight: 500; }
+    .forgot:hover { color: var(--white); }
+
+    /* Bouton */
+    .btn-login {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--blue), var(--blue-light));
+      color: var(--white);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      letter-spacing: 0.03em;
+    }
+    .btn-login::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: rgba(255,255,255,0);
+      transition: 0.3s;
+    }
+    .btn-login:hover::after { background: rgba(255,255,255,0.08); }
+    .btn-login:hover { transform: translateY(-2px); box-shadow: 0 10px 30px var(--blue-glow); }
+    .btn-login:active { transform: translateY(0); }
+    .btn-login.green { background: linear-gradient(135deg, var(--green), var(--green-light)); }
+    .btn-login.green:hover { box-shadow: 0 10px 30px rgba(5,150,105,0.3); }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 22px 0;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .signup-link {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .signup-link a { color: var(--blue-light); font-weight: 600; text-decoration: none; }
+    .signup-link a:hover { color: var(--white); }
+
+    /* Alertes */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .alert-success { background: rgba(5,150,105,0.15); border: 1px solid rgba(5,150,105,0.3); color: var(--green-light); }
+    .alert-error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
+
+    @media (max-width: 700px) {
+      .left-panel { display: none; }
+      .right-panel { width: 100%; }
+      .container { width: 100%; border-radius: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="container">
+  
+
+  <!-- Panneau droit -->
+  <div class="right-panel">
+    <div class="form-title">Se connecter</div>
+    <div class="form-subtitle">Accédez à votre espace personnel</div>
+
+    <div id="alertBox" class="alert"></div>
+
+    <div class="role-tabs">
+      <button class="role-btn active" id="btnEtudiant" onclick="setRole('etudiant')">
+        <i class="fas fa-user-graduate"></i> Étudiant
+      </button>
+      <button class="role-btn" id="btnProf" onclick="setRole('enseignant')">
+        <i class="fas fa-user-tie"></i> Enseignant
+      </button>
+    </div>
+
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div class="field">
+        <label>Numéro Apogée / Identifiant</label>
+        <div class="input-wrap">
+          <i class="fas fa-id-card input-icon"></i>
+          <input type="text" id="apogee" placeholder="Ex: 2200001 ou PROF001" required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Mot de passe</label>
+        <div class="input-wrap">
+          <i class="fas fa-lock input-icon"></i>
+          <input type="password" id="password" placeholder="••••••••" required>
+        </div>
+      </div>
+
+      <div class="row-options">
+        <label class="check-label">
+          <input type="checkbox" id="remember"> Se souvenir de moi
+        </label>
+        <a href="#" class="forgot">Mot de passe oublié ?</a>
+      </div>
+
+      <button type="submit" class="btn-login" id="btnLogin">
+        <i class="fas fa-arrow-right-to-bracket me-2"></i> Se connecter
+      </button>
+    </form>
+
+    <div class="divider">ou</div>
+
+    <div class="signup-link">
+      Pas encore de compte ? <a href="inscription.html">Créer un compte</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentRole = 'etudiant';
+
+  function setRole(role) {
+    currentRole = role;
+    const btnE = document.getElementById('btnEtudiant');
+    const btnP = document.getElementById('btnProf');
+    const btnLogin = document.getElementById('btnLogin');
+
+    if (role === 'etudiant') {
+      btnE.className = 'role-btn active';
+      btnP.className = 'role-btn';
+      btnLogin.className = 'btn-login';
+    } else {
+      btnE.className = 'role-btn';
+      btnP.className = 'role-btn active green';
+      btnLogin.className = 'btn-login green';
+    }
+  }
+
+  function showAlert(msg, type) {
+    const box = document.getElementById('alertBox');
+    box.className = `alert alert-${type}`;
+    box.innerHTML = msg;
+    box.style.display = 'block';
+    if (type === 'success') setTimeout(() => box.style.display = 'none', 4000);
+  }
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    const apogee = document.getElementById('apogee').value.trim();
+    const password = document.getElementById('password').value;
+    const btn = document.getElementById('btnLogin');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Vérification...';
+
+    try {
+      const res = await fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apogee, password })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.access_token) {
+        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('userName', data.full_name);
+        localStorage.setItem('apogee', data.apogee);
+        localStorage.setItem('email', data.email);
+        localStorage.setItem('isProf', data.is_prof ? '1' : '0');
+        localStorage.setItem('avatar', data.avatar || '🎓');
+        showAlert('Connexion réussie ! Redirection...', 'success');
+        setTimeout(() => window.location.href = 'index.html', 1200);
+      } else {
+        showAlert(' ' + (data.detail || 'Identifiants invalides'), 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-arrow-right-to-bracket"></i> Se connecter';
+      }
+    } catch (err) {
+      showAlert(' Erreur réseau. Vérifiez que le serveur est lancé.', 'error');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-arrow-right-to-bracket"></i> Se connecter';
+    }
+  }
+</script>
+</body>
+</html>
