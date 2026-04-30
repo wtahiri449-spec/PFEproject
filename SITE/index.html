@@ -47,11 +47,7 @@
         <h5 class="fw-800 text-primary mb-0">ESTBM Portal</h5>
         <div id="roleBadge" class="role-pill bg-primary text-white">Espace Étudiant</div>
     </div>
-    <div class="px-2 mb-4">
-        <button class="btn btn-outline-dark btn-sm w-100 fw-bold shadow-sm" onclick="toggleUserMode()" id="switchBtn">
-            <i class="fas fa-chalkboard-teacher me-2"></i> ACCÈS ENSEIGNANT
-        </button>
-    </div>
+
     <nav class="nav flex-column">
         <div class="nav-link active" onclick="switchTab('tab-ia', this)"><i class="fas fa-microchip me-2"></i> Analyse AI</div>
         <div class="nav-link" onclick="switchTab('tab-groups', this)"><i class="fas fa-users me-2"></i> Groupes & Sections</div>
@@ -164,7 +160,7 @@
         </div>
     </div>
 
-    <div id="tab-prof-notes" class="tab-content prof-only">
+    <div id="tab-prof-notes" class="tab-content">
         <h3 class="fw-800 mb-4">Saisie des Notes AI (Exclusif Enseignant)</h3>
         <div class="glass-card">
             <div class="mb-4 d-flex justify-content-between align-items-center">
@@ -299,6 +295,11 @@
 
     // ========== TAB NAVIGATION ==========
     function switchTab(tabId, el) {
+        // Block students from accessing teacher-only pages
+        if (!myIsProf && tabId === 'tab-prof-notes') {
+            alert("Cette section est réservée aux enseignants.");
+            return;
+        }
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
@@ -306,25 +307,7 @@
         if (tabId === 'tab-chat') socket.emit('get_online_users');
     }
 
-    // ========== TEACHER / STUDENT UI TOGGLE ==========
-    function toggleUserMode() {
-        const body = document.getElementById('mainBody');
-        const badge = document.getElementById('roleBadge');
-        const btn = document.getElementById('switchBtn');
-        if (body.classList.contains('is-prof')) {
-            body.classList.remove('is-prof');
-            badge.innerText = "Espace Étudiant";
-            btn.innerHTML = '<i class="fas fa-chalkboard-teacher me-2"></i> ACCÈS ENSEIGNANT';
-            switchTab('tab-ia', document.querySelectorAll('.nav-link')[0]);
-        } else {
-            body.classList.add('is-prof');
-            badge.innerText = "Espace Enseignant";
-            btn.innerHTML = '<i class="fas fa-user-graduate me-2"></i> RETOUR ÉTUDIANT';
-            syncProfTable();
-            switchTab('tab-prof-notes', document.querySelector('[onclick*="tab-prof-notes"]'));
-        }
-    }
-
+    
     // ========== GROUPS & SCHEDULE DATA ==========
     const masterData = {
         GI: { G1: ["Ahmed Alami", "Brahim Tazi", "Asma Zouine"], G2: ["Ghali Bennani", "Wissal Tahiri"] },
@@ -371,19 +354,30 @@
     }
 
     // ========== INITIALIZATION ==========
-    window.onload = () => {
-        if (!myApogee) return;  // already redirected
-        document.getElementById('profile-name').innerText = myName;
-        document.getElementById('profile-email').innerText = localStorage.getItem('email') || '';
-        document.getElementById('profile-role').innerText = myIsProf ? 'Enseignant' : 'Étudiant';
-        if (myIsProf) {
-            document.getElementById('mainBody').classList.add('is-prof');
-            document.getElementById('roleBadge').innerText = "Espace Enseignant";
-            document.getElementById('switchBtn').innerHTML = '<i class="fas fa-user-graduate me-2"></i> RETOUR ÉTUDIANT';
-        }
-        renderGroups('GI', document.querySelectorAll('.btn-group-f')[0]);
-        loadEmploi('GI', document.querySelectorAll('.btn-e')[0]);
-    };
+window.onload = () => {
+    if (!myApogee) return;  // already redirected
+
+    document.getElementById('profile-name').innerText = myName;
+    document.getElementById('profile-email').innerText = localStorage.getItem('email') || '';
+    document.getElementById('profile-role').innerText = myIsProf ? 'Enseignant' : 'Étudiant';
+
+    const body = document.getElementById('mainBody');
+    const badge = document.getElementById('roleBadge');
+
+    if (myIsProf) {
+        body.classList.add('is-prof');
+        badge.innerText = "Espace Enseignant";
+        switchTab('tab-prof-notes', document.querySelector('[onclick*="tab-prof-notes"]'));
+        syncProfTable();
+    } else {
+        body.classList.remove('is-prof');
+        badge.innerText = "Espace Étudiant";
+        switchTab('tab-ia', document.querySelectorAll('.nav-link')[0]);
+    }
+
+    renderGroups('GI', document.querySelectorAll('.btn-group-f')[0]);
+    loadEmploi('GI', document.querySelectorAll('.btn-e')[0]);
+};
 
     function editProfile() { alert("Profile editing not yet implemented."); }
     function logoutUser() { localStorage.clear(); window.location.href = '/login.html'; }
