@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.core.database import SessionLocal, init_db
-from app.models.user import User
+from app.models import User
 from app.core.security import hash_password, verify_password
 from app.core.auth_utils import create_access_token
 
@@ -52,4 +52,10 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     if not db_user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     access_token = create_access_token({"sub": db_user.apogee, "is_prof": db_user.is_prof})
-    return {"access_token": access_token, "token_type": "bearer", "is_prof": db_user.is_prof, "full_name": db_user.full_name}
+    return {"access_token": access_token,
+            "token_type": "bearer",
+            "is_prof": db_user.is_prof,
+            "apogee": db_user.apogee, 
+            "full_name": db_user.full_name
+            
+                 }

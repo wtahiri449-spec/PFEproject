@@ -457,7 +457,7 @@
       if (res.ok && data.access_token) {
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('userName', data.full_name);
-        localStorage.setItem('apogee', data.apogee);
+        localStorage.setItem('apogee', apogee);
         localStorage.setItem('email', data.email);
         localStorage.setItem('isProf', data.is_prof ? '1' : '0');
         localStorage.setItem('avatar', data.avatar || '🎓');
