@@ -3,14 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Plateforme académique intelligente : IA, messagerie, gestion groupes, enseignants et étudiants.">
     <title>ESTBM Portal | Plateforme Académique Intelligente</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-
     <style>
         :root { --primary: #4361ee; --success: #10b981; --bg: #f8faff; --sidebar-w: 260px; }
         body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg); color: #1e293b; transition: 0.3s; }
@@ -104,15 +102,20 @@
                         <i class="fas fa-user"></i>
                     </div>
                     <div>
-                        <div class="fw-bold small" id="chat-with-name">Prof.Siham</div>
+                        <div class="fw-bold small" id="chat-with-name">Choisir un enseignant</div>
                         <div class="text-success small" style="font-size: 0.7rem;"><i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i> En ligne</div>
                     </div>
                 </div>
             </div>
+            <div class="p-3 bg-white border-bottom">
+                <select id="recipient-select" class="form-select form-select-sm" onchange="selectRecipient()">
+                    <option value="">Chargement des enseignants en ligne...</option>
+                </select>
+            </div>
             <div id="msg-container" class="msg-container"></div>
             <div class="p-3 bg-white border-top">
                 <div class="input-group">
-                    <input type="text" id="chat-input" class="form-control border-0 bg-light shadow-none" placeholder="Écrivez votre message...">
+                    <input type="text" id="chat-input" class="form-control border-0 bg-light shadow-none" placeholder="Écrivez votre message..." onkeypress="if(event.key==='Enter') sendMessage()">
                     <button class="btn btn-primary px-4" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
                 </div>
             </div>
@@ -182,117 +185,209 @@
 </div>
 
 <script>
+    // ========== SOCKET & CHAT LOGIC ==========
     const socket = io("http://127.0.0.1:8000");
-    let myID = "22001144";
-    let targetID = "123456";
-    let isProf = false;
+    let myApogee = localStorage.getItem('apogee');
+    let myName = localStorage.getItem('userName');
+    let myIsProf = localStorage.getItem('isProf') === '1';
+    let targetApogee = null;
+    let onlineUsers = [];  // will store {apogee, name, is_prof}
 
+    // Security check: if not logged in, redirect to login
+    if (!myApogee || !myName) {
+        alert("Session expirée, veuillez vous reconnecter.");
+        window.location.href = '/login.html';
+    }
+
+    socket.on('connect', () => {
+        socket.emit('join', { apogee: myApogee, is_prof: myIsProf, name: myName });
+    });
+
+    socket.on('online_users_update', (users) => {
+        onlineUsers = users;
+        renderRecipientDropdown();
+    });
+
+    socket.on('receive_private_msg', (data) => {
+        if (data.sender === targetApogee || data.receiver === targetApogee || data.sender === myApogee) {
+            appendMessage(data);
+        }
+    });
+
+    // Request online users when Messagerie tab is opened
+    document.querySelector('.nav-link[onclick*="tab-chat"]').addEventListener('click', () => {
+        socket.emit('get_online_users');
+    });
+
+    // Render the dropdown based on user role
+    function renderRecipientDropdown() {
+        const container = document.getElementById('recipient-select');
+        if (!container) return;
+        let html = '';
+        if (myIsProf) {
+            // Teacher sees online students
+            const students = onlineUsers.filter(u => !u.is_prof);
+            html = '<option value="">Choisir un étudiant en ligne...</option>';
+            students.forEach(s => {
+                html += `<option value="${s.apogee}">${s.name} (${s.apogee})</option>`;
+            });
+        } else {
+            // Student sees online teachers
+            const teachers = onlineUsers.filter(u => u.is_prof);
+            html = '<option value="">Choisir un enseignant en ligne...</option>';
+            teachers.forEach(t => {
+                html += `<option value="${t.apogee}">${t.name} (${t.apogee})</option>`;
+            });
+        }
+        container.innerHTML = html;
+    }
+
+    // When a recipient is selected
+    function selectRecipient() {
+        const sel = document.getElementById('recipient-select');
+        targetApogee = sel.value;
+        if (targetApogee) {
+            document.getElementById('chat-with-name').innerText = sel.options[sel.selectedIndex].text;
+            loadConversation(myApogee, targetApogee);
+        }
+    }
+
+    // Load conversation history from server
+    function loadConversation(sender, receiver) {
+        clearChat();
+        fetch(`/messages/${sender}/${receiver}`)
+            .then(res => res.json())
+            .then(msgs => {
+                msgs.forEach(m => appendMessage(m));
+            })
+            .catch(() => console.log("History endpoint unavailable"));
+    }
+
+    // Send a message
+    function sendMessage() {
+        const input = document.getElementById('chat-input');
+        const content = input.value.trim();
+        if (!content || !targetApogee) return;
+        const msgData = {
+            sender: myApogee,
+            receiver: targetApogee,
+            content: content,
+            senderName: myName,
+            timestamp: new Date().toISOString()
+        };
+        socket.emit('send_private_msg', msgData);
+        input.value = '';
+    }
+
+    // Append a message bubble (blue right if sent by me, gray left if received)
+    function appendMessage(data) {
+        const container = document.getElementById('msg-container');
+        const isMine = data.sender === myApogee;
+        const bubble = document.createElement('div');
+        bubble.className = `bubble ${isMine ? 'bubble-sent' : 'bubble-received'}`;
+        const time = new Date(data.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        bubble.innerHTML = `<div class="fw-bold small">${data.senderName || data.sender}</div>
+                            <div>${data.content}</div>
+                            <div class="text-end" style="font-size:0.65rem;">${time}</div>`;
+        container.appendChild(bubble);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function clearChat() {
+        document.getElementById('msg-container').innerHTML = '';
+    }
+
+    // ========== TAB NAVIGATION ==========
+    function switchTab(tabId, el) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        if (el) el.classList.add('active');
+        if (tabId === 'tab-chat') socket.emit('get_online_users');
+    }
+
+    // ========== TEACHER / STUDENT UI TOGGLE ==========
+    function toggleUserMode() {
+        const body = document.getElementById('mainBody');
+        const badge = document.getElementById('roleBadge');
+        const btn = document.getElementById('switchBtn');
+        if (body.classList.contains('is-prof')) {
+            body.classList.remove('is-prof');
+            badge.innerText = "Espace Étudiant";
+            btn.innerHTML = '<i class="fas fa-chalkboard-teacher me-2"></i> ACCÈS ENSEIGNANT';
+            switchTab('tab-ia', document.querySelectorAll('.nav-link')[0]);
+        } else {
+            body.classList.add('is-prof');
+            badge.innerText = "Espace Enseignant";
+            btn.innerHTML = '<i class="fas fa-user-graduate me-2"></i> RETOUR ÉTUDIANT';
+            syncProfTable();
+            switchTab('tab-prof-notes', document.querySelector('[onclick*="tab-prof-notes"]'));
+        }
+    }
+
+    // ========== GROUPS & SCHEDULE DATA ==========
     const masterData = {
         GI: { G1: ["Ahmed Alami", "Brahim Tazi", "Asma Zouine"], G2: ["Ghali Bennani", "Wissal Tahiri"] },
         AI: { G1: ["Meryem Sadiki", "Nabil Jbara"], G2: ["Saad Alaoui", "Touria Fahim"] },
         SIR: { G1: ["Yassine Amri", "Zineb Berrada"], G2: ["Emily Tazi", "Farah Jabiri"] },
         MLT: { G1: ["Kamal Lahlou", "Lamia Chraibi"], G2: ["Quentin Sadiki", "Rachid Jbara"] }
     };
-
     const scheduleData = {
-        GI: [["Lundi", "Java SE", "SQL Adv", "Anglais", "Soft Skills"]],
+        GI: [["Lundi", "Java SE", "SQL Adv", "Anglais", "Soft Skills"],
+             ["Mardi", "UML", "Java SE Lab", "Maths", "TEC"]],
         AI: [["Lundi", "Maths Discrètes", "Python ML", "Algo Lab", "Stats"]]
     };
-
-    function switchTab(id, el) {
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        if(el) el.classList.add('active');
-    }
-
-    function toggleUserMode() {
-        isProf = !isProf;
-        const body = document.getElementById('mainBody');
-        const badge = document.getElementById('roleBadge');
-        const btn = document.getElementById('switchBtn');
-        
-        if(isProf) {
-            body.classList.add('is-prof');
-            badge.innerText = "Espace Enseignant";
-            btn.innerHTML = '<i class="fas fa-user-graduate me-2"></i> RETOUR ÉTUDIANT';
-            syncProfTable();
-        } else {
-            body.classList.remove('is-prof');
-            badge.innerText = "Espace Étudiant";
-            btn.innerHTML = '<i class="fas fa-chalkboard-teacher me-2"></i> ACCÈS ENSEIGNANT';
-            switchTab('tab-ia', document.querySelectorAll('.nav-link')[0]);
-        }
-    }
-
-    function syncProfTable() {
-        const group = document.getElementById('groupSelector').value;
-        const filiere = 'GI'; 
-        document.getElementById('prof-current-info').innerText = `Filière: ${filiere} | Groupe: ${group}`;
-        let h = "";
-        masterData[filiere][group].forEach(name => {
-            h += `<tr><td class="fw-bold">${name}</td><td><input type="number" class="form-control form-control-sm w-75"></td><td><input type="number" class="form-control form-control-sm w-75"></td><td><span class="badge bg-primary">Predict: 14.5</span></td><td><button class="btn btn-dark btn-sm">Valider</button></td></tr>`;
-        });
-        document.getElementById('prof-table-body').innerHTML = h;
-    }
+    let currentFiliere = 'GI';
 
     function renderGroups(f, btn) {
         currentFiliere = f;
-        document.querySelectorAll('.btn-group-f').forEach(b => { 
-            b.classList.replace('btn-dark', 'btn-outline-dark'); 
-            b.classList.add('border-0'); 
-        });
-        btn.classList.replace('btn-outline-dark', 'btn-dark'); 
-        btn.classList.remove('border-0');
-
+        document.querySelectorAll('.btn-group-f').forEach(b => { b.classList.replace('btn-dark','btn-outline-dark'); b.classList.add('border-0'); });
+        btn.classList.replace('btn-outline-dark','btn-dark'); btn.classList.remove('border-0');
         let h = "";
-        ['G1', 'G2'].forEach(g => {
-            // Hna l-koud kay-affichi ghir smiyat dyal tlamed (Student List)
-            h += `<div class="col-md-6 mb-3">
-                    <div class="glass-card h-100">
-                        <div class="group-header">${f} - ${g}</div>`;
-            
-            masterData[f][g].forEach(name => { 
-                h += `<div class="py-2 border-bottom small text-muted">
-                        <i class="fas fa-user-circle me-2 text-primary opacity-50"></i>${name}
-                      </div>`; 
-            });
-            
+        ['G1','G2'].forEach(g => {
+            h += `<div class="col-md-6 mb-3"><div class="glass-card h-100"><div class="group-header">${f} - ${g}</div>`;
+            masterData[f][g].forEach(name => { h += `<div class="py-2 border-bottom small text-muted"><i class="fas fa-user-circle me-2 text-primary opacity-50"></i>${name}</div>`; });
             h += `</div></div>`;
         });
         document.getElementById('groups-list').innerHTML = h;
     }
 
-    // Saisie des notes bqat ghir f-had l-fonction l-khassa b-l'Enseignant
+    function loadEmploi(f, btn) {
+        document.querySelectorAll('.btn-e').forEach(b => { b.classList.replace('btn-dark','btn-outline-dark'); b.classList.add('border-0'); });
+        btn.classList.replace('btn-outline-dark','btn-dark'); btn.classList.remove('border-0');
+        let h = "";
+        (scheduleData[f] || scheduleData['GI']).forEach(r => { h += `<tr><td class="fw-bold bg-light">${r[0]}</td><td><span class="module-badge">${r[1]}</span></td><td>${r[2]}</td><td><span class="module-badge">${r[3]}</span></td><td>${r[4]}</td></tr>`; });
+        document.getElementById('emploi-body').innerHTML = h;
+    }
+
     function syncProfTable() {
         const group = document.getElementById('groupSelector').value;
         document.getElementById('prof-current-info').innerText = `Filière: ${currentFiliere} | Groupe: ${group}`;
         let h = "";
         masterData[currentFiliere][group].forEach(name => {
-            h += `<tr>
-                    <td class="fw-bold text-dark">${name}</td>
-                    <td><input type="number" class="form-control form-control-sm w-75 bg-light border-0"></td>
-                    <td><input type="number" class="form-control form-control-sm w-75 bg-light border-0"></td>
-                    <td><span class="badge bg-primary">Predict: 14.5</span></td>
-                    <td><button class="btn btn-dark btn-sm rounded-pill px-3">Valider</button></td>
-                  </tr>`;
+            h += `<tr><td class="fw-bold">${name}</td><td><input type="number" class="form-control form-control-sm w-75 bg-light border-0"></td><td><input type="number" class="form-control form-control-sm w-75 bg-light border-0"></td><td><span class="badge bg-primary">Predict: 14.5</span></td><td><button class="btn btn-dark btn-sm rounded-pill px-3">Valider</button></td></tr>`;
         });
         document.getElementById('prof-table-body').innerHTML = h;
     }
-    
-    function loadEmploi(f, btn) {
-        document.querySelectorAll('.btn-e').forEach(b => { b.classList.replace('btn-dark', 'btn-outline-dark'); b.classList.add('border-0'); });
-        btn.classList.replace('btn-outline-dark', 'btn-dark'); btn.classList.remove('border-0');
-        let h = "";
-        const data = scheduleData[f] || scheduleData['GI'];
-        data.forEach(r => { h += `<tr><td class="fw-bold bg-light">${r[0]}</td><td><span class="module-badge">${r[1]}</span></td><td>${r[2]}</td><td><span class="module-badge">${r[3]}</span></td><td>${r[4]}</td></tr>`; });
-        document.getElementById('emploi-body').innerHTML = h;
-    }
 
+    // ========== INITIALIZATION ==========
     window.onload = () => {
+        if (!myApogee) return;  // already redirected
+        document.getElementById('profile-name').innerText = myName;
+        document.getElementById('profile-email').innerText = localStorage.getItem('email') || '';
+        document.getElementById('profile-role').innerText = myIsProf ? 'Enseignant' : 'Étudiant';
+        if (myIsProf) {
+            document.getElementById('mainBody').classList.add('is-prof');
+            document.getElementById('roleBadge').innerText = "Espace Enseignant";
+            document.getElementById('switchBtn').innerHTML = '<i class="fas fa-user-graduate me-2"></i> RETOUR ÉTUDIANT';
+        }
         renderGroups('GI', document.querySelectorAll('.btn-group-f')[0]);
         loadEmploi('GI', document.querySelectorAll('.btn-e')[0]);
     };
+
+    function editProfile() { alert("Profile editing not yet implemented."); }
+    function logoutUser() { localStorage.clear(); window.location.href = '/login.html'; }
+    function submitDocRequest() { alert("Document request sent (simulation)."); }
 </script>
 </body>
 </html>
